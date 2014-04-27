@@ -1,0 +1,14 @@
+{
+  "name": "brokeass",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node brokeass.js"
+  },
+  "dependencies": {
+	"socket.io":"*",
+	"serialport":"*",
+	"express":"*",
+	"ejs":"*"
+  }
+}

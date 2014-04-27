@@ -1,0 +1,567 @@
+<!doctype html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<meta charset="utf-8">
+	<title>Broke-Ass Prototype</title>
+	<script src="http://192.168.1.39:3000/socket.io/socket.io.js"></script>
+	<script>
+		var uid = guid();
+		var m1_speed = 0;
+		var m2_speed = 0;
+		var pedal_left;
+		var pedal_right;
+		var user_name = "";
+		var starman;
+		var STATE_INTRO = "STATE_INTRO";
+		var STATE_LOGIN = "STATE_LOGIN";
+		var STATE_LOGIN_SUCCESS = "STATE_LOGIN_SUCCESS";
+		var STATE_IDLE = "STATE_IDLE";
+		var STATE_DRIVE = "STATE_DRIVE";
+		var STATE_POWERUP = "STATE_POWERUP";
+		var STATE_STARMAN = "STATE_STARMAN";
+		var STATE_STARMAN_WIN = "STATE_STARMAN_WIN";
+		var STATE_STARMAN_FAIL = "STATE_STARMAN_FAIL";
+		var _state = STATE_LOGIN;
+		var coinCount = 0;
+		
+		var socket;
+		
+		var motor_range = 255;
+		
+		var padding_y;
+
+		function broadcastToSocket(value){
+			if (socket){
+				socket.emit('brokeass-message', value);
+			}
+		}
+		function S4() {
+			return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+		}
+		function guid(){
+			return (S4() + S4() + "-" + S4() + "-4" + S4().substr(0,3) + "-" + S4() + "-" + S4() + S4() + S4()).toLowerCase();
+		}
+		
+		function loop(){
+			// - (360-pedal_left.style.top.replace("px", ""))*0.25
+			var current_y_left = Number(pedal_left.style.top.replace("px", ""));
+			var current_y_right = Number(pedal_right.style.top.replace("px", ""));
+			//console.log("padding_y", padding_y);
+			var range_of_motion = (window.innerHeight-padding_y)/2;
+			//pedal_left.style.top = (((window.innerHeight/2) - (range_of_motion*m1_speed/-motor_range))-pedal_left.height/2)+"px";
+//			pedal_right.style.top = padding_y/2 + (current_y_right + (((window.innerHeight/2 + m2_speed/motor_range*window.innerHeight/2)- current_y_right-pedal_right.height/2)*0.5)) + "px";
+
+			var next_y_left = (window.innerHeight/2-pedal_left.height/2) - (m1_speed/255 *range_of_motion);
+			var next_y_right = (window.innerHeight/2-pedal_right.height/2) - (m2_speed/255 *range_of_motion);
+
+			pedal_left.style.top = (current_y_left + (next_y_left-current_y_left)*0.5)  + "px";
+			pedal_right.style.top = (current_y_right + (next_y_right-current_y_right)*0.5)  + "px";
+			if (get_state() == STATE_POWERUP){
+				moveStarman();
+			}
+			if (m1_speed != 0 || m2_speed != 0){
+				coinCount += 0.025;
+				updateCoinage();
+			}
+		}
+		var dx = 50;
+		var dy = 50;
+		function moveStarman(){
+			
+			var orig_x = Number(starman.style.left.replace("px", ""));
+			var orig_y = Number(starman.style.top.replace("px", ""));
+			
+			starman.style.left = (orig_x+dx) + "px";
+			starman.style.top = (orig_y+dy) + "px";
+			//console.log(starman);
+			if (Number(starman.style.left.replace("px", "")) < 0 || Number(starman.style.left.replace("px", ""))>window.innerWidth - starman.childNodes[0].width){
+				starman.style.left = (orig_x) + "px";
+				dx*=-1;
+			}
+			if (Number(starman.style.top.replace("px", "")) < 0 || Number(starman.style.top.replace("px", ""))>window.innerHeight - starman.childNodes[0].height){
+				starman.style.top = (orig_y) + "px";
+				dy*=-1;
+			}
+		}
+		function releaseSlider($target){
+			setTimeout(function(){
+				$target.value = "";
+			}, 10);
+		}
+		function broadcastSpeed(){				
+			document.getElementById("btn_login").addEventListener('touchend', function(e) {});
+			broadcastToSocket("{\"m1\":"+m1_speed+",\"m2\":"+m2_speed+", \"username\":\""+user_name+"\"}");	
+		}
+		
+		window.onload = function(e){
+			
+			starman = document.getElementById("starman");
+			
+			starman_visible(false);
+			
+			document.getElementsByTagName("body")[0].addEventListener('touchend', function(e) {
+//			document.getElementById("touchlayer").addEventListener('touchend', function(e) {
+				if (get_state() != STATE_DRIVE && get_state() != STATE_STARMAN && get_state() != STATE_STARMAN_WIN && get_state() != STATE_STARMAN_FAIL){
+					return;	
+				}
+				if (get_state()==STATE_STARMAN_FAIL){
+					starmanAudio();
+				}
+
+				for (var i = 0; i < e.changedTouches.length; i ++){
+					var touch = e.changedTouches[i];
+					if (touch.pageX < window.innerWidth/2){
+						//m1_target
+						m1_speed = 0;
+					}else {
+						//m2_target
+						m2_speed = 0;
+					}
+					broadcastSpeed();
+				}
+				e.preventDefault();
+			}, false);
+			//padding_y is used to give a bit of padding to the range of the pedal sliders
+			//It's 10% for the bottom and top
+			padding_y = window.innerHeight*0.20;	
+			document.getElementsByTagName("body")[0].addEventListener('touchmove', function(e) {
+			
+//			document.getElementById("touchlayer").addEventListener('touchmove', function(e) {
+
+				if (get_state() != STATE_DRIVE && get_state() != STATE_STARMAN && get_state() != STATE_STARMAN_WIN && get_state() != STATE_STARMAN_FAIL){
+					return;	
+				}
+				//document.getElementById("trace").innerHTML += "touchMove";
+	//			if (event.targetTouches.length == 1) {
+				for (var i = 0; i < e.targetTouches.length; i ++){
+					
+					var touch = e.targetTouches[i];
+					
+					var motor_range_value = 0;//Math.round(((touch.pageY-padding_y/2)-(window.innerHeight)/2)/((window.innerHeight-padding_y)/2)*motor_range);
+					var touch_percentage = ((touch.pageY-padding_y/2)/(window.innerHeight-(padding_y))-0.5);
+					
+					if (touch_percentage < -0.5){
+						touch_percentage = -0.5;
+					}else if (touch_percentage > 0.5){
+						touch_percentage = 0.5;
+					}
+					
+					motor_range_value = Math.floor(touch_percentage*motor_range*-2);
+					
+					//broadcastToSocket(touch.pageX);
+					if (touch.pageX < window.innerWidth/2){
+						//m1_target
+						m1_speed = motor_range_value;
+					}else {
+						//m2_target
+						m2_speed = motor_range_value;
+					}
+//					document.getElementById("trace").innerHTML = String(pad(m1_speed, 3) + " | " + String(pad(m2_speed, 3)));
+				}
+				
+				broadcastSpeed();
+				e.preventDefault();
+	//			}
+			}, false);
+			
+			document.getElementById("ui_brokeass").addEventListener('touchend', function(e) {
+				honk();
+				e.preventDefault();
+			}, false);
+			if (window.DeviceOrientationEvent) {
+				// Listen for the deviceorientation event and handle the raw data
+				window.addEventListener('deviceorientation', function(eventData) {
+				// gamma is the left-to-right tilt in degrees, where right is positive
+				var tiltLR = eventData.gamma - 45;
+				
+				// beta is the front-to-back tilt in degrees, where front is positive
+				var tiltFB = eventData.beta;
+				
+				// alpha is the compass direction the device is facing in degrees
+				var dir = eventData.alpha
+				
+				// call our orientation event handler
+				deviceOrientationHandler(tiltLR, tiltFB, dir);
+				}, false);
+			} else {
+				//document.getElementById("doEvent").innerHTML = "Not supported on your device or browser.  Sorry."
+			}
+			
+			set_state(STATE_INTRO);
+			resizePage();
+			initImages();	
+			
+			document.getElementById("intro").addEventListener('touchend', function(e) {
+				set_state(STATE_LOGIN);
+				e.preventDefault();
+				
+				document.getElementById("intro").addEventListener('touchend', function(e) {});
+			});
+
+			document.getElementById("btn_login").addEventListener('touchend', function(e) {
+				submit_username();
+				e.preventDefault();
+			});
+			
+			document.getElementById("starman").addEventListener('touchend', function(e) {
+				clickPowerup();
+				e.preventDefault();
+			});
+			
+		}
+		window.onresize = function(event) {
+			resizePage();
+		};
+		function resizePage(){
+			if (window.innerWidth < window.innerHeight){
+				addClass(document.body, "portrait");	
+			}else{
+				removeClass(document.body, "portrait");
+			}
+		}
+		function pad(number, length) {
+			number = Math.round(number);
+			var lessthanzero = (number < 0)?true:false;
+			if (length < String(number).length){
+				return String(number);	
+			}
+			var zero_string = "";
+			for (var i = 0; i < length; i ++){
+				zero_string += "0";	
+			}
+			var number_string = (zero_string + number).slice(-length);
+			if (lessthanzero){number_string = number_string.replace("-", "-0");};
+			return number_string;
+		}
+		function deviceOrientationHandler(tiltLR, tiltFB, dir) {
+		  // Apply the transform to the image
+		  var logo = document.getElementById("ui_brokeass");
+		  
+		  logo.style.webkitTransform = "rotate("+ tiltFB +"deg)";
+		  logo.style.MozTransform = "rotate("+ tiltFB +"deg)";
+		  logo.style.transform = "rotate("+ tiltFB +"deg)";
+
+		}
+		function login(){
+			shadowbox_visible(true);
+			document.getElementById("ui_entername").style.display = "table-cell";
+			addClass(document.getElementById("ui_entername"), "fadein");
+		}
+		function shadowbox_visible($visible){
+			if ($visible == true){
+				document.getElementById("shadowbox").style.display = "block";
+				document.getElementById("touchlayer").style.display = "none";
+			}else{
+				addClass(document.getElementById("shadowbox"), "fadeout");
+				setTimeout(function(){
+					document.getElementById("shadowbox").style.display = "none";
+					removeClass(document.getElementById("shadowbox"), "fadeout");
+				}, 1000);
+				document.getElementById("touchlayer").style.display = "block";
+			}
+		}
+		function setUserName($username){
+			user_name = $username;
+			document.getElementById("ui_username").innerHTML = user_name;
+			document.getElementById("ui_entername_success").innerHTML = "<h1>Get ready <br/>"+user_name+"</h1>";
+		}
+		function submit_username(){
+			setUserName(document.getElementById("user_name").value);
+			
+			if (user_name == ""){
+				return;
+			}
+			if (this["io"]){
+				socket = io.connect('http://192.168.1.39:3000/');
+				
+				socket.on('brokeass-message-client', function (data) {
+					//console.log(data);
+					
+					if (data.toString().indexOf("connected")>-1){
+			
+						set_state(STATE_LOGIN_SUCCESS);
+						broadcastSpeed();
+					}
+					if (data.toString().indexOf("collective_stats")==-1){
+						console.log(data);
+					}
+					if (data.toString() == "adequate_attempts"){
+						adequate();
+						console.log("socket.on",data.toString() == "adequate_attempts");
+
+						return;	
+					}
+					if (data.toString().indexOf("powerupMode") != -1){
+						set_state(STATE_POWERUP);
+						return;	
+					}
+					if (data.toString().indexOf("killPowerupMode") != -1){
+						killPowerup();
+						return;	
+					}
+					if (data.toString().indexOf("missed_starman") != -1){
+						console.log("missed_starman");
+						document.getElementById("ui_starman").innerHTML = "<h1>"+JSON.parse(data.toString()).username+" has control</h1>";
+						set_state(STATE_STARMAN_FAIL);
+						return;	
+					}
+					if (data.toString().indexOf("end_invincibility") != -1){
+						killInvincible();
+						return;	
+					}
+					if (data.toString().indexOf("collective_stats")>-1){
+						var obj = JSON.parse(data.toString());
+						if (obj["collective_stats"]){
+							var msg = pad(obj.m1, 3) + " | " + pad(obj.m2, 3);
+							trace(msg);
+						}
+					}
+				});
+			}
+			setInterval(loop, 50);
+		}
+		function killPowerup(){
+			if (get_state() == STATE_POWERUP){
+				set_state(STATE_DRIVE);	
+				starman_visible(false);
+			}
+		}
+		function trace($msg){
+			//console.log($msg);
+			document.getElementById("trace").innerHTML = String($msg);
+		}
+		function clickPowerup(){			
+			document.getElementById('ui_powerup').setAttribute('src', 'images/lg_powerup_star.png');
+			mode_powerup = false;
+			starman_visible(false);
+			set_state(STATE_STARMAN_WIN);
+			broadcastToSocket("{\"caught_powerup\":"+true+", \"username\":\"" + user_name + "\"}");
+		}
+		
+		function starman_visible ($visible){
+			if ($visible == true){
+				starman.style.display = "block";
+			}else{
+				starman.style.display = "none";
+			}
+		}
+		
+		function set_state($state){
+			_state = $state;
+			starman_visible(false);			
+			switch(_state){
+				case STATE_INTRO:
+					init_intro();
+				break;
+				case STATE_LOGIN:			
+					document.getElementById("intro").style.left = "-100%";
+					addClass(document.getElementById("intro"), "slideoutright");
+					setTimeout(function(){
+						document.getElementById("intro").style.display = "none";
+						login();
+					}, 250);
+					
+				break;
+				case STATE_LOGIN_SUCCESS:
+					document.getElementById("ui_entername").style.display = "none";
+					document.getElementById("ui_entername_success").style.display = "table-cell";
+					setTimeout(function(){
+						shadowbox_visible(false);
+						document.getElementById("ui_entername_success").style.display = "none";
+						set_state(STATE_DRIVE);
+					}, 2000);
+				break;
+				case STATE_IDLE:
+				break;
+				case STATE_DRIVE:
+				break;
+				case STATE_POWERUP:
+				starman_visible(true);
+				setTimeout(killPowerup, 15000);
+				break;
+				case STATE_STARMAN:
+				break;
+				case STATE_STARMAN_WIN:
+				invincible(true);
+				break;
+				case STATE_STARMAN_FAIL:
+				invincible(false);
+				break;
+			}
+		}
+		function invincible($starman){
+			if ($starman == true){
+				shadowbox_visible(false);
+				document.getElementById('ui_powerup').setAttribute('src', 'images/lg_powerup_star.png');
+			}else{
+				shadowbox_visible(true);
+				document.getElementById("ui_starman").style.display = "table-cell";
+				starmanAudio();
+			}
+		}
+		function killInvincible(){
+			document.getElementById('ui_powerup').setAttribute('src', 'images/lg_powerup_idle.png');
+			if (get_state() == STATE_STARMAN_FAIL || get_state() == STATE_STARMAN_WIN){
+				audio_stop();
+				set_state(STATE_DRIVE);
+				shadowbox_visible(false);
+			}
+		}
+		function audio_stop(){
+			document.getElementById('adequate').pause();
+		}
+		function get_state(){
+			return _state;	
+		}
+		function updateCoinage(){
+			document.getElementById("coinage").innerHTML = pad(Math.round(coinCount), 3);	
+		}
+		function removeClass($tag, $class){
+			$tag.className = document.body.className.replace($class,"");	
+		}
+		function addClass($tag, $class){
+			$tag.className += " " + $class;
+		}
+		function init_intro(){
+			shadowbox_visible(true);
+			addClass(document.getElementById("shadowbox"), "fadein");
+			addClass(document.getElementById("center-strip"), "slideinleft");
+			setTimeout(function(){
+				document.getElementById("intro").style.display = "table-cell";
+				addClass(document.getElementById("intro"), "fadein");
+			}, 500);
+		}
+		function starmanAudio(){
+			var audio_path = "audio/starman."+extension;
+			if (!document.getElementById('adequate').getAttribute('src')){
+				document.getElementById('adequate').setAttribute('src', audio_path);
+				document.getElementById('adequate').loop = false;
+			}
+			if (document.getElementById('adequate').getAttribute('src').indexOf(audio_path) == -1){
+				document.getElementById('adequate').setAttribute('src', audio_path);
+				document.getElementById('adequate').loop = true;
+			}
+			document.getElementById('adequate').play();
+		}
+		function honk(){
+			var audio_path = "audio/horn."+extension;
+			if (!document.getElementById('adequate').getAttribute('src')){
+				document.getElementById('adequate').setAttribute('src', audio_path);
+				document.getElementById('adequate').loop = false;
+			}
+			if (document.getElementById('adequate').getAttribute('src').indexOf(audio_path) == -1){
+				document.getElementById('adequate').setAttribute('src', audio_path);
+				document.getElementById('adequate').loop = false;
+			}
+			document.getElementById('adequate').play();
+		}
+		function adequate(){
+			var audio_path = 'audio/adequate.'+extension;
+			if (!document.getElementById('adequate').getAttribute('src')){
+				document.getElementById('adequate').setAttribute('src', audio_path);
+				document.getElementById('adequate').loop = false;
+			}
+			if (document.getElementById('adequate').getAttribute('src').indexOf(audio_path) == -1){
+				document.getElementById('adequate').setAttribute('src', audio_path);
+				document.getElementById('adequate').loop = false;
+			}
+			document.getElementById('adequate').play();
+		}
+		var audio  = document.createElement("audio"),
+		canPlayMP3 = (typeof audio.canPlayType === "function" && audio.canPlayType("audio/mpeg") !== "");
+		var extension = "ogg";
+		if (canPlayMP3== true){
+			extension = "mp3";
+		}
+		function initImages(){
+			document.getElementById("starman").innerHTML = "<img src=\"images/starman.png\" />";
+			document.getElementById("track_left").innerHTML = "<img src=\"images/lg_pedal_left.png\" id=\"pedal_left\" />";
+			document.getElementById("track_right").innerHTML = "<img src=\"images/lg_pedal_right.png\" id=\"pedal_right\" />";
+			
+			pedal_left = document.getElementById("pedal_left");
+			pedal_right = document.getElementById("pedal_right");
+			
+			pedal_left.style.top = "-500px";//(window.innerHeight/2- pedal_left.height/2) + "px";
+			pedal_right.style.top = "-500px";//(window.innerHeight/2- pedal_right.height/2) + "px";
+			
+			preventLongPressMenu(pedal_left);
+			preventLongPressMenu(pedal_right );
+		}
+		function absorbEvent_(event) {
+		  var e = event || window.event;
+		  e.preventDefault && e.preventDefault();
+		  e.stopPropagation && e.stopPropagation();
+		  e.cancelBubble = true;
+		  e.returnValue = false;
+		  return false;
+		}
+	
+		function preventLongPressMenu(node) {
+		  node.ontouchstart = absorbEvent_;
+		  node.ontouchmove = absorbEvent_;
+		  node.ontouchend = absorbEvent_;
+		  node.ontouchcancel = absorbEvent_;
+		}
+	
+		</script> 
+<link href="style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div id="starman">
+<!--
+img moved to initImages Javascript function to control load order
+-->
+</div>
+
+	<header>
+		<img id="ui_powerup" src="images/lg_powerup_idle.png" />
+		<h1 id="ui_username"></h1>
+	</header>
+	<main>
+		<nav>
+			<div id="track_left"><!--
+img moved to initImages Javascript function to control load order
+--></div>
+			<div id="spacer-brokeass"></div>
+			<div id="track_right"><!--
+img moved to initImages Javascript function to control load order
+--></div>
+		</nav>
+	</main>
+
+	<div id="horn">
+		<nav>
+			<div id="spacer-track_left"><!--
+img moved to initImages Javascript function to control load order
+--></div>
+			<div id="brokeass"><div class="table-cell"><img id="ui_brokeass" src="images/lg_brokeass.png" /><br/><div id="trace">000 | 000</div></div></div>
+			<div id="spacer-track_right"><!--
+img moved to initImages Javascript function to control load order
+--></div>
+		</nav>
+	</div>
+	<aside id="shadowbox">
+		<div id="center-strip">
+			<section id="intro">
+				<img src="images/typeform.png" />
+			</section>
+			<section id="ui_entername">
+				<label>Name</label><br/><input type="text" id="user_name" maxlength="15"><br/>
+				<input type="button" value="START" id="btn_login">
+			</section>
+			<section id="ui_entername_success">
+				<h1>Success!</h1>
+			</section>
+			<section id="ui_starman">
+				<h1>Player 1 has control</h1>
+			</section>
+		</div>
+	</aside>
+	<aside id="coinage">000</aside>
+	<div id="touchlayer"></div>
+	<audio id="adequate">
+		<source src="audio/adequate.mp3" type="audio/mpeg">
+	</audio>
+</body>
+</html>

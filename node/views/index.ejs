@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <h1 id="title"><%= title %></h1>
+    <script src="<%= ip %>:3000/socket.io/socket.io.js"></script>
+	<script>
+		var socket = io.connect('<%= ip %>:3000/');
+		socket.on('amexMSG', function (data) {
+			console.log(data);
+			//var title = JSON.stringify(data);
+			//document.getElementById("title").innerHTML += "<br/>" + title;
+		});
+		function broadcastToSocket(value){
+			socket.emit('msgToSocket', value);
+		}
+		function broadcastToHardware(value){
+			socket.emit('msgToHardware', value);
+		}
+		function onClickedSetState(target){
+			if (target.name == "g0"){
+				broadcastToHardware("#D9A"+target.value + "*");
+			}else{
+				var playernumber = Number(target.name.replace("g",""));
+				var playername = "A";
+				switch (playernumber){
+					case 1:
+					playername = "A";
+					break;
+					case 2:
+					playername = "B";
+					break;
+					case 3:
+					playername = "C";
+					break;
+					case 4:
+					playername = "D";
+					break;
+				}
+				
+				broadcastToHardware("#E9A"+target.value + playername + "*");
+			}
+		}
+		function onChangeSetMotor(target){
+		console.log(target.value);
+		var sliderVal = target.value/100;
+		var moveNumber = pad(Math.floor(sliderVal * 49340), 5);
+		console.log(moveNumber);
+			if (target.name == "m0"){
+				return;
+				alert("DISABLED");
+				broadcastToHardware("#J3AU"+moveNumber+"8*");
+				broadcastToHardware("#J3BU"+moveNumber+"8*");
+				broadcastToHardware("#J3CU"+moveNumber+"8*");
+				broadcastToHardware("#J3DU"+moveNumber+"8*");
+			}else{
+				var playernumber = Number(target.name.replace("m",""));var playername = "A";
+				switch (playernumber){
+					case 1:
+					playername = "A";
+					break;
+					case 2:
+					playername = "B";
+					break;
+					case 3:
+					playername = "C";
+					break;
+					case 4:
+					playername = "D";
+					break;
+				}
+				broadcastToHardware("#J3"+playername+"U"+moveNumber+"8*");
+			}
+		}
+		function pad(num, size) {
+			var s = num+"";
+			while (s.length < size) s = "0" + s;
+			return s;
+		}
+		function onBtnClick(target){
+			if (target.name == "b0"){
+				switch (target.value){
+					case "Points = 5":
+						broadcastToSocket({type:"SET_SCORE_01", value:5});
+						broadcastToSocket({type:"SET_SCORE_02", value:5});
+						broadcastToSocket({type:"SET_SCORE_03", value:5});
+						broadcastToSocket({type:"SET_SCORE_04", value:5});
+					break;
+					case "Points = 15":
+						broadcastToSocket({type:"SET_SCORE_01", value:15});
+						broadcastToSocket({type:"SET_SCORE_02", value:15});
+						broadcastToSocket({type:"SET_SCORE_03", value:15});
+						broadcastToSocket({type:"SET_SCORE_04", value:15});
+					break;
+					case "Points = 0":
+						broadcastToSocket({type:"SET_SCORE_01", value:0});
+						broadcastToSocket({type:"SET_SCORE_02", value:0});
+						broadcastToSocket({type:"SET_SCORE_03", value:0});
+						broadcastToSocket({type:"SET_SCORE_04", value:0});
+					break;
+					case "Lock Value":
+						broadcastToSocket({type:"GAME_LOGIC", value:"ANSWER", uid:1});
+						broadcastToSocket({type:"GAME_LOGIC", value:"ANSWER", uid:2});
+						broadcastToSocket({type:"GAME_LOGIC", value:"ANSWER", uid:3});
+						broadcastToSocket({type:"GAME_LOGIC", value:"ANSWER", uid:4});
+					break;
+					case "Idle":
+						broadcastToSocket({type:"GAME_LOGIC", value:"NEXT", uid:1});
+						broadcastToSocket({type:"GAME_LOGIC", value:"NEXT", uid:2});
+						broadcastToSocket({type:"GAME_LOGIC", value:"NEXT", uid:3});
+						broadcastToSocket({type:"GAME_LOGIC", value:"NEXT", uid:4});
+						broadcastToSocket("NEW_QUESTION");
+					break;
+					case "Reset":
+						broadcastToSocket({type:"GAME_LOGIC", value:"GAME_OVER"});
+					break;
+					case "Game Begin":
+						broadcastToSocket({"type":"GAME_LOGIC", "value":"LOCK_SCREENS"});
+					break;
+					case "START_ATTRACTOR":
+						broadcastToSocket({"type":"START_ATTRACTOR", "value":"Whee!"});
+						break;
+					case "Motors On":
+						broadcastToSocket({"type":"MOTORS_ON", "value":"thankYou"});
+						break;
+					case "Motors Off":
+						broadcastToSocket({"type":"MOTORS_OFF", "value":"thankYou"});
+						break;
+					case "Lights Off":
+						broadcastToSocket({"type":"LIGHTS_OFF", "value":"doItNow"});
+						break;
+					case "Light Two":
+						broadcastToSocket({"type":"LIGHT_TWO", "value":"doItNow"});
+						break;
+					case "Speaker Mode":
+						broadcastToSocket({"type":"SPEAKER_MODE", "value":"doItNow"});
+						break;
+				}
+			}else{
+				var playernumber = Number(target.name.replace("b",""));
+				switch (target.value){
+					case "Points = 5":
+						broadcastToSocket({type:"SET_SCORE_0"+playernumber, value:5});
+					break;
+					case "Points = 15":
+						broadcastToSocket({type:"SET_SCORE_0"+playernumber, value:15});
+					break;
+					case "Points = 0":
+						broadcastToSocket({type:"SET_SCORE_0"+playernumber, value:0});
+					break;
+					case "Lock Value":
+						broadcastToSocket({type:"GAME_LOGIC", value:"ANSWER", uid:playernumber});
+					break;
+					case "Idle":
+						broadcastToSocket({type:"GAME_LOGIC", value:"NEXT", uid:playernumber});
+					break;
+				}
+			}
+		}
+	</script>
+	
+<form>
+<label>ALL</label>
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="0" />
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="1" />
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="3" />
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="2" />
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="5" />
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="4" />
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="6" />
+<input onclick="onClickedSetState(this);" type="radio" name="g0" value="7" />
+<br/><label>Motor</label><input disabled type="range" name="m0" value="0" min="0" max="100" onChange="onChangeSetMotor(this)">
+<br/><input type="button" onClick="onBtnClick(this)" value="Points = 5" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 15" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 0" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Lock Value" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Idle" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Reset" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Game Begin" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="START_ATTRACTOR" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Motors On" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Motors Off" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Lights Off" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Light Two" name="b0" />
+<input type="button" onClick="onBtnClick(this)" value="Speaker Mode" name="b0" />
+<hr/>
+<label>Player 1</label>
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="0" />
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="1" />
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="3" />
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="2" />
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="5" />
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="4" />
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="6" />
+<input onclick="onClickedSetState(this);" type="radio" name="g1" value="7" />
+<br/><label>Motor</label><input type="range" name="m1" value="0" min="0" max="100" onChange="onChangeSetMotor(this)">
+<br/><input type="button" onClick="onBtnClick(this)" value="Points = 5" name="b1" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 15" name="b1" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 0" name="b1" />
+<input type="button" onClick="onBtnClick(this)" value="Lock Value" name="b1" />
+<input type="button" onClick="onBtnClick(this)" value="Idle" name="b1" />
+<hr/>
+<label>Player 2</label>
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="0" />
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="1" />
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="3" />
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="2" />
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="5" />
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="4" />
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="6" />
+<input onclick="onClickedSetState(this);" type="radio" name="g2" value="7" />
+<br/><label>Motor</label><input type="range" name="m2" value="0" min="0" max="100" onChange="onChangeSetMotor(this)">
+<br/><input type="button" onClick="onBtnClick(this)" value="Points = 5" name="b2" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 15" name="b2" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 0" name="b2" />
+<input type="button" onClick="onBtnClick(this)" value="Lock Value" name="b2" />
+<input type="button" onClick="onBtnClick(this)" value="Idle" name="b2" />
+<hr/>
+<label>Player 3</label>
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="0" />
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="1" />
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="3" />
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="2" />
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="5" />
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="4" />
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="6" />
+<input onclick="onClickedSetState(this);" type="radio" name="g3" value="7" />
+<br/><label>Motor</label><input type="range" name="m3" value="0" min="0" max="100" onChange="onChangeSetMotor(this)">
+<br/><input type="button" onClick="onBtnClick(this)" value="Points = 5" name="b3" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 15" name="b3" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 0" name="b3" />
+<input type="button" onClick="onBtnClick(this)" value="Lock Value" name="b3" />
+<input type="button" onClick="onBtnClick(this)" value="Idle" name="b3" />
+<hr/>
+<label>Player 4</label>
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="0" />
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="1" />
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="3" />
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="2" />
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="5" />
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="4" />
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="6" />
+<input onclick="onClickedSetState(this);" type="radio" name="g4" value="7" />
+<br/><label>Motor</label><input type="range" name="m4" value="0" min="0" max="100" onChange="onChangeSetMotor(this)">
+<br/><input type="button" onClick="onBtnClick(this)" value="Points = 5" name="b4" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 15" name="b4" />
+<input type="button" onClick="onBtnClick(this)" value="Points = 0" name="b4" />
+<input type="button" onClick="onBtnClick(this)" value="Lock Value" name="b4" />
+<input type="button" onClick="onBtnClick(this)" value="Idle" name="b4" />
+</form>
+  </body>
+</html>
