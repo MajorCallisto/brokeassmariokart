@@ -1,10 +1,3 @@
-//npm install -g serialport
-//doesn't work on my system
-//I use https://github.com/voodootikigod/node-serialport
-//Need to install gyp first: npm install -g gyp
-//It seems to fuckup without visual studio
-//I had to install Visual Studio Express - 2013
-//Ultimately, I had to download from the git, copy the files into the folder and manually isntall
 var util = require('util');
 var SerialPort = require("serialport").SerialPort;
 var express = require('express');
@@ -129,26 +122,15 @@ arduino.on('error', function(data){
 	}
 });
 openArduino();
-function openArduino(){
-	
+function openArduino(){	
 	arduino.open(function () {
-	console.log('Arduino open');
-	config.setSpeedInterval = setInterval(calculateAverage, 250);
-	
-	arduino_openattempts = 0;
-	arduino.on('data', function(data) {
-		console.log('data received: ' + data);
-	});
-	/*
-	arduino.write("ls\n", function(err, results) {
-	if (err != undefined){
-		console.log('err ' + err);
-	}
-	if (results != undefined){
-		console.log('results ' + results);
-	}
-	});
-	*/
+		console.log('Arduino open');
+		config.setSpeedInterval = setInterval(calculateAverage, 250);
+		
+		arduino_openattempts = 0;
+		arduino.on('data', function(data) {
+			console.log('data received: ' + data);
+		});
 	});
 }
 function sendHardwareMSG($msg){
