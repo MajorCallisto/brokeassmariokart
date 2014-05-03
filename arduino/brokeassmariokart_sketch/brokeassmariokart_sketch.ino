@@ -1,10 +1,10 @@
-/*MOTOR_MASTER_START*/
-#include <Adafruit_NeoPixel.h>
-#define PIN 6
+/*MOTOR_MASTER_START
+//#include <Adafruit_NeoPixel.h>
+//#define PIN 6
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(56, PIN, NEO_GRB + NEO_KHZ800);
-boolean invincible = false;
-int invincible_iterator = 0;
+//Adafruit_NeoPixel strip = Adafruit_NeoPixel(56, PIN, NEO_GRB + NEO_KHZ800);
+//boolean invincible = false;
+//int invincible_iterator = 0;
 
 /*MOTOR_MASTER_END*/
 
@@ -28,7 +28,10 @@ const int pin_dir = 8;
 
 const int pin_isMasterMotor = 7;
 
+/*MOTOR_MASTER_START
 boolean isMasterMotor = false;
+/*MOTOR_MASTER_END*/
+
 boolean lastisMasterMotor = false;
 
 //PWMH Pins on the driver circuits
@@ -62,8 +65,8 @@ void setup()
   initCommMaster();
   initCommSlave();
   
-/*MOTOR_MASTER_START*/
-  initLights();
+/*MOTOR_MASTER_START
+//  initLights();
 
 /*MOTOR_MASTER_END*/
   
@@ -74,11 +77,13 @@ void setup()
     writePWM(0);
 }
 void initCommMaster(){
-  
+  /*
   Serial.begin(115200);
   Serial.println("Serial Connection");
-  /**/
-/*MOTOR_MASTER_START*/
+  */
+/*MOTOR_MASTER_START
+  Serial.begin(115200);
+  Serial.println("Connection good");
 
   Serial3.begin(115200);
   Serial3.println("Broke-Ass Mariokart Master Serial is good");
@@ -93,7 +98,7 @@ void initCommMaster(){
 }
 
 void initCommSlave(){
-  /*MOTOR_SLAVE_START
+  /*MOTOR_SLAVE_START*/
   Serial.begin(115200);
   Serial.println("Broke-Ass Mariokart SLAVE Serial is good");
   Serial.println("{\"m1\":255,\"m2\":255}");
@@ -101,13 +106,13 @@ void initCommSlave(){
   
 }
 
-/*MOTOR_MASTER_START*/
+/*MOTOR_MASTER_START
 
 void initLights(){
-  strip.begin();
-  strip.show(); // Initialize all pixels to 'off' 
+ // strip.begin();
+ // strip.show(); // Initialize all pixels to 'off' 
 }
-
+/*
 
 void changeColor(){
   uint16_t i, j;
@@ -124,6 +129,7 @@ void killColor(){
   }
   strip.show();
 }
+*/
 /*MOTOR_MASTER_END*/
 
 void initPins(){
@@ -176,7 +182,7 @@ void loop()
     lastisMasterMotor = false;
   }
   if (isMasterMotor == true){
-    /*MOTOR_MASTER_START*/
+    /*MOTOR_MASTER_START
     if(Serial2.available())  // If the bluetooth sent any characters
     {
       // Send any characters the bluetooth prints to the serial monitor
@@ -186,7 +192,7 @@ void loop()
       if (newChar == '\n'){
         parseMotorSpeed();
         Serial3.print(motor_command);
-      }
+       }
     }
     /*MOTOR_MASTER_END*/
   }else{
@@ -204,7 +210,7 @@ void loop()
   }
   if (isMasterMotor == true){
     
-    /*MOTOR_MASTER_START*/
+    /*MOTOR_MASTER_START
     if (last_speed != motor_speed_master){
         if (d_speed < 0){
            d_speed = (motor_speed_master-last_speed)/10;
@@ -237,14 +243,14 @@ void loop()
       }
     }
   }
-  if (invincible == true){
+  /*if (invincible == true){
     Serial.println("true");
     invincible_iterator++;
     if (invincible_iterator > 25){
        changeColor();
        invincible_iterator = 0;
     }
-  }
+  }*/
 
   delay(10);
 }
@@ -257,9 +263,8 @@ void parseMotorSpeed(){
   stringComplete = true; 
   motor_command = inputString;
   
-  /*MOTOR_MASTER_START*/
-    Serial.println(inputString.indexOf("i_f"));
-    Serial.println(inputString);
+  /*MOTOR_MASTER_START
+    /*
     if (inputString.indexOf("i_t") > -1){
       invincible = true;
     }
@@ -268,7 +273,7 @@ void parseMotorSpeed(){
       invincible_iterator = 0;
       killColor();
     }
-  
+  */
   /*MOTOR_MASTER_END*/
   
   //if there isn't a proper motor command
@@ -368,7 +373,7 @@ void parseMotorSpeed(){
     }
     p = strtok(NULL, ",");
   }
-  /*MOTOR_MASTER_START*/
+  /*MOTOR_MASTER_START
     //delay(10);
   /*MOTOR_MASTER_END*/
 
@@ -390,7 +395,7 @@ void changeDirection(int motor_speed){
         //analogWrite(pin_pwm, motor_speed);
         writePWM(motor_speed);
         last_speed = motor_speed;
-    /*MOTOR_MASTER_START*/
+    /*MOTOR_MASTER_START
         //Serial3.println(motor_speed);
     
     /*MOTOR_MASTER_END*/

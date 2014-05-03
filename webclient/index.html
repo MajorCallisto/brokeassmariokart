@@ -4,7 +4,8 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 	<meta charset="utf-8">
 	<title>Broke-Ass Prototype</title>
-	<script src="http://192.168.1.39:3000/socket.io/socket.io.js"></script>
+	<!--<script src="http://192.168.1.113:3000/socket.io/socket.io.js"></script>-->
+	<script src="http://192.168.1.38:3000/socket.io/socket.io.js"></script>
 	<script>
 		var uid = guid();
 		var m1_speed = 0;
@@ -273,7 +274,9 @@
 				return;
 			}
 			if (this["io"]){
-				socket = io.connect('http://192.168.1.39:3000/');
+				
+				//socket = io.connect('http://192.168.1.113:3000/');
+				socket = io.connect('http://192.168.1.38:3000/');
 				
 				socket.on('brokeass-message-client', function (data) {
 					//console.log(data);
