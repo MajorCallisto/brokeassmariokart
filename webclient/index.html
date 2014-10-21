@@ -5,7 +5,7 @@
 	<meta charset="utf-8">
 	<title>Broke-Ass Prototype</title>
 	<!--<script src="http://192.168.1.113:3000/socket.io/socket.io.js"></script>-->
-	<script src="http://192.168.1.38:3000/socket.io/socket.io.js"></script>
+	<script src="http://192.168.0.20:3000/socket.io/socket.io.js"></script>
 	<script>
 		var uid = guid();
 		var m1_speed = 0;
@@ -31,6 +31,8 @@
 		var motor_range = 255;
 		
 		var padding_y;
+		
+		var keyboardOverwrite = false;
 
 		function broadcastToSocket(value){
 			if (socket){
@@ -90,7 +92,10 @@
 				$target.value = "";
 			}, 10);
 		}
-		function broadcastSpeed(){				
+		function broadcastSpeed(){
+			if (get_state()==STATE_STARMAN_FAIL){
+				return;	
+			}
 			document.getElementById("btn_login").addEventListener('touchend', function(e) {});
 			broadcastToSocket("{\"m1\":"+m1_speed+",\"m2\":"+m2_speed+", \"username\":\""+user_name+"\"}");	
 		}
@@ -103,21 +108,23 @@
 			
 			document.getElementsByTagName("body")[0].addEventListener('touchend', function(e) {
 //			document.getElementById("touchlayer").addEventListener('touchend', function(e) {
+				
 				if (get_state() != STATE_DRIVE && get_state() != STATE_STARMAN && get_state() != STATE_STARMAN_WIN && get_state() != STATE_STARMAN_FAIL){
 					return;	
 				}
 				if (get_state()==STATE_STARMAN_FAIL){
 					starmanAudio();
+					return;
 				}
 
 				for (var i = 0; i < e.changedTouches.length; i ++){
 					var touch = e.changedTouches[i];
-					if (touch.pageX < window.innerWidth/2){
-						//m1_target
-						m1_speed = 0;
-					}else {
+					if (touch.pageX > window.innerWidth/2){
 						//m2_target
 						m2_speed = 0;
+					}else {
+						//m1_target
+						m1_speed = 0;
 					}
 					broadcastSpeed();
 				}
@@ -136,7 +143,9 @@
 				//document.getElementById("trace").innerHTML += "touchMove";
 	//			if (event.targetTouches.length == 1) {
 				for (var i = 0; i < e.targetTouches.length; i ++){
-					
+					if (keyboardOverwrite == true){
+						continue;
+					}
 					var touch = e.targetTouches[i];
 					
 					var motor_range_value = 0;//Math.round(((touch.pageY-padding_y/2)-(window.innerHeight)/2)/((window.innerHeight-padding_y)/2)*motor_range);
@@ -151,6 +160,7 @@
 					motor_range_value = Math.floor(touch_percentage*motor_range*-2);
 					
 					//broadcastToSocket(touch.pageX);
+					
 					if (touch.pageX < window.innerWidth/2){
 						//m1_target
 						m1_speed = motor_range_value;
@@ -200,16 +210,80 @@
 				document.getElementById("intro").addEventListener('touchend', function(e) {});
 			});
 
-			document.getElementById("btn_login").addEventListener('touchend', function(e) {
+			document.getElementById("btn_login").addEventListener('touchend', btnClickStart);
+			document.getElementById("btn_login").addEventListener('click', btnClickStart);
+			function btnClickStart(e){
 				submit_username();
 				e.preventDefault();
-			});
-			
+			}
 			document.getElementById("starman").addEventListener('touchend', function(e) {
 				clickPowerup();
 				e.preventDefault();
 			});
-			
+			window.onkeydown = function (e){
+				var val;
+				if (e.keyCode >= 48 && e.keyCode <= 57){
+					val = e.keyCode -48;
+					m1_speed = val/9 *255 - 127;
+					keyboardOverwrite = true;
+					
+					broadcastSpeed();
+				}else if (e.keyCode >= 96 && e.keyCode <= 105){
+					val = e.keyCode -96;
+					m2_speed = val/9 *255 - 127;
+					keyboardOverwrite = true;
+
+					broadcastSpeed();
+				}else if (e.keyCode == 39){//right
+					m2_speed = 63;
+					keyboardOverwrite = true;
+
+					broadcastSpeed();
+				}else if (e.keyCode == 37){//left
+					m1_speed = 63;
+					keyboardOverwrite = true;
+
+					broadcastSpeed();
+				}else if (e.keyCode == 38){//up
+					m1_speed = m2_speed = 63;
+					keyboardOverwrite = true;
+
+					broadcastSpeed();
+				}else if (e.keyCode == 40){//down
+					m1_speed = m2_speed = -63;
+					keyboardOverwrite = true;
+
+					broadcastSpeed();
+				}
+			}
+			window.onkeyup = function (e){
+				if (e.keyCode >= 48 && e.keyCode <= 57){
+					m1_speed = 0;
+					keyboardOverwrite = false;
+					
+					broadcastSpeed();
+				}else if (e.keyCode >= 96 && e.keyCode <= 105){
+					m2_speed = 0;
+					keyboardOverwrite = false;
+					
+					broadcastSpeed();
+				}else if (e.keyCode == 39){//right
+					m2_speed = 0;
+					keyboardOverwrite = false;
+
+					broadcastSpeed();
+				}else if (e.keyCode == 37){//left
+					m1_speed = 0;
+					keyboardOverwrite = false;
+
+					broadcastSpeed();
+				}else if (e.keyCode == 38 || e.keyCode == 40){//up or down
+					m1_speed = m2_speed = 0;
+					keyboardOverwrite = false;
+
+					broadcastSpeed();
+				}
+			}
 		}
 		window.onresize = function(event) {
 			resizePage();
@@ -273,10 +347,18 @@
 			if (user_name == ""){
 				return;
 			}
+			
+			
+			document.getElementById("btn_login").addEventListener('touchend', null);
+			document.getElementById("btn_login").addEventListener('click', null);
+			document.getElementById("btn_login").value = "CONNECTING";
+			document.getElementById("btn_login").disabled = true;
+			document.getElementById("user_name").disabled = true;
+				
 			if (this["io"]){
 				
 				//socket = io.connect('http://192.168.1.113:3000/');
-				socket = io.connect('http://192.168.1.38:3000/');
+				socket = io.connect('http://192.168.0.20:3000/');
 				
 				socket.on('brokeass-message-client', function (data) {
 					//console.log(data);
@@ -398,18 +480,18 @@
 				shadowbox_visible(false);
 				document.getElementById('ui_powerup').setAttribute('src', 'images/lg_powerup_star.png');
 			}else{
+				starmanAudio();
 				shadowbox_visible(true);
 				document.getElementById("ui_starman").style.display = "table-cell";
-				starmanAudio();
 			}
 		}
 		function killInvincible(){
 			document.getElementById('ui_powerup').setAttribute('src', 'images/lg_powerup_idle.png');
 			if (get_state() == STATE_STARMAN_FAIL || get_state() == STATE_STARMAN_WIN){
-				audio_stop();
 				set_state(STATE_DRIVE);
 				shadowbox_visible(false);
 			}
+			audio_stop();
 		}
 		function audio_stop(){
 			document.getElementById('adequate').pause();
@@ -439,7 +521,7 @@
 			var audio_path = "audio/starman."+extension;
 			if (!document.getElementById('adequate').getAttribute('src')){
 				document.getElementById('adequate').setAttribute('src', audio_path);
-				document.getElementById('adequate').loop = false;
+				document.getElementById('adequate').loop = true;
 			}
 			if (document.getElementById('adequate').getAttribute('src').indexOf(audio_path) == -1){
 				document.getElementById('adequate').setAttribute('src', audio_path);

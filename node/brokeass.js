@@ -4,12 +4,13 @@ var express = require('express');
 var app = express();
 var http = require('http');
 var path = require('path');
+var readline = require('readline');
 
 
 var config = {};
 //Whatever port the bluetooth is on
 config.comPort = "COM10";
-config.baudrate = 115200;
+config.baudrate = 38400;
 config.databits = 8;
 config.MaxArduinoAttempts = 3;
 config.active_powerup = false;
@@ -18,6 +19,11 @@ config.length_powerup = 10000;
 config.length_invincibility = 15000;
 config.setSpeedInterval = 0;
 config.invincibleClientId = -1;
+
+var rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 console.log("Broke-Ass Mariokart Node Application");
 
@@ -74,8 +80,8 @@ io.sockets.on('connection', function (socket) {
 			socket_strike(socket);
 			return;
 		}
-		obj.m1 = map(obj.m1, -255,255);
-		obj.m2 = map(obj.m2, -255,255);
+		obj.m1 = map(obj.m1, -127,127);
+		obj.m2 = map(obj.m2, -127,127);
 		
 		socket.username = String(obj.username);
 		
@@ -103,35 +109,42 @@ function map($value, $min, $max){
 	return Math.min(Math.max(parseInt($value), $min), $max);	
 }
 
-var arduino = new SerialPort(config.comPort, {
-  baudrate: config.baudrate,
-  databits: config.databits
-}, false); // this is the openImmediately flag [default is true]
+var arduino;
+var arduino_openattempts;
+initArduino();
+function initArduino(){
+	arduino = new SerialPort(config.comPort, {
+	  baudrate: config.baudrate,
+	  databits: config.databits
+	}, false); // this is the openImmediately flag [default is true]
 
-var arduino_openattempts = 0;
-
-arduino.on('error', function(data){
-	arduino_openattempts++
-	if (arduino_openattempts<config.MaxArduinoAttempts){
-		console.log("Arduino " + data);
+	arduino_openattempts = 0;
 	
-		setTimeout(openArduino, 2000);
-	}else{
-		console.log("Unable to open connection. Please reset bluesmirf");	
-		config.setSpeedInterval = setInterval(calculateAverage, 250);
-	}
-});
-openArduino();
-function openArduino(){	
-	arduino.open(function () {
-		console.log('Arduino open');
-		config.setSpeedInterval = setInterval(calculateAverage, 250);
+	arduino.on('error', function(data){
+		arduino_openattempts++
+		if (arduino_openattempts<config.MaxArduinoAttempts){
+			console.log("Arduino " + data);
 		
-		arduino_openattempts = 0;
-		arduino.on('data', function(data) {
-			console.log('data received: ' + data);
-		});
+			setTimeout(openArduino, 2000);
+		}else{
+			console.log("Unable to open connection. Please reset bluesmirf");	
+			config.setSpeedInterval = setInterval(calculateAverage, 250);
+			questionPromptCommands();
+		}
 	});
+	openArduino();
+	function openArduino(){	
+		arduino.open(function () {
+			console.log('Arduino open');
+			config.setSpeedInterval = setInterval(calculateAverage, 250);
+			
+			arduino_openattempts = 0;
+			arduino.on('data', function(data) {
+				console.log('data received: ' + data);
+			});
+			questionPromptCommands();
+		});
+	}
 }
 function sendHardwareMSG($msg){
 	arduino.write($msg + "\n", function(err, results) {
@@ -151,16 +164,18 @@ function calculateAverage(){
 		var average_m2 = 0;
 		for (var i = 0; i < clients.length; i ++){
 			if (config.active_invincibilty ==true && config.invincibleId == clients[i].id){
-				average_m1 += clients[i].motor_speed.m1;
-				average_m2 += clients[i].motor_speed.m1;
+				average_m1 = clients[i].motor_speed.m1;
+				average_m2 = clients[i].motor_speed.m1;
 				break;	
 			}
 			average_m1 += clients[i].motor_speed.m1;
 			average_m2 += clients[i].motor_speed.m2;
 		}
 		
-		average_m1 /= -clients.length;
-		average_m2 /= -clients.length;
+		if (config.active_invincibilty ==false){
+			average_m1 /= -clients.length;
+			average_m2 /= -clients.length;
+		}
 		if (isNaN(average_m1)){
 			average_m1 = 0;	
 		}
@@ -169,8 +184,10 @@ function calculateAverage(){
 		}
 		var motor_command = "{\"m1\":"+average_m1+",\"m2\":"+average_m2+"}";
 		sendHardwareMSG(motor_command);
+//		console.log(motor_command);
 		motor_command = motor_command.replace("}", ", \"collective_stats\":true, \"numberOfClients\":\""+clients.length+"\"}");
 		io.sockets.emit("brokeass-message-client", motor_command);
+//		console.log(motor_command);
 }
 setInterval(initPowerup, 60000);
 setTimeout(function(){sendHardwareMSG("{\"i_t\":}");}, 1000);
@@ -194,10 +211,44 @@ function killPowerup(){
 	setTimeout(function(){io.sockets.emit("brokeass-message-client", "{\"end_invincibility\":"+true+"}");}, 500);
 }
 function killInvincibility(){
+	console.log("killInvincibility");
 	config.invincibleClientId = "";
 	config.active_invincibilty = false;	
 	io.sockets.emit("brokeass-message-client", "{\"end_invincibility\":"+true+"}");
 	setTimeout(function(){io.sockets.emit("brokeass-message-client", "{\"end_invincibility\":"+true+"}");}, 500);
 	sendHardwareMSG("{\"i_f\":}");
 }
-/**/
+
+function questionPromptCommands(){
+	rl.question("Enter a command [u] [s] [i] [?]:", function(answer) {
+		answer = answer.toLowerCase();
+		command = answer.charAt(0);
+		console.log(command);
+		switch(command){
+			case "u":
+				var port = answer.split(" ");
+				console.log(port[1]);
+				if (port.length > 1){
+					config.comPort = port[1];
+					initArduino();
+				}
+				break;
+			case "s":
+				break;
+			case "i":
+				initPowerup();
+				questionPromptCommands();
+				break;
+			case "?":
+				console.log("Here are the commands:");
+				console.log("u: updateComPort. Specify a port name. e.g. u COM10");
+				console.log("s: stopAllMotors.");
+				console.log("i: invincibleMode.");
+				break;
+			default:
+				console.log("\n\nI don't know what that means\n\n");
+				questionPromptCommands();
+				break;
+		}
+	});
+}
