@@ -1,0 +1,15 @@
+{
+  "name": "brokeassmariokart-webclient",
+  "version": "0.0.4",
+  "description": "A webclient project for brokeass mariokart",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm run lite",
+    "lite": "lite-server"
+  },
+  "author": "Christopher Lewis",
+  "license": "ISC",
+  "devDependencies": {
+    "lite-server": "^2.2.2"
+  }
+}

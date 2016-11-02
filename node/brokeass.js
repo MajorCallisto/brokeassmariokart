@@ -1,16 +1,19 @@
 var util = require('util');
-var SerialPort = require("serialport").SerialPort;
+var SerialPort = require("serialport");
 var express = require('express');
 var app = express();
 var http = require('http');
 var path = require('path');
 var readline = require('readline');
 
+/*
+Config object for internal modification
+*/
 
 var config = {};
 //Whatever port the bluetooth is on
-config.comPort = "COM10";
-config.baudrate = 38400;
+config.comPort = "COM20";
+config.baudrate = 115200;
 config.databits = 8;
 config.MaxArduinoAttempts = 3;
 config.active_powerup = false;
@@ -26,6 +29,7 @@ var rl = readline.createInterface({
 });
 
 console.log("Broke-Ass Mariokart Node Application");
+
 
 //all environments
 app.set('port', process.env.PORT || 3000);
@@ -115,8 +119,9 @@ initArduino();
 function initArduino(){
 	arduino = new SerialPort(config.comPort, {
 	  baudrate: config.baudrate,
-	  databits: config.databits
-	}, false); // this is the openImmediately flag [default is true]
+	  databits: config.databits,
+    autoOpen:false
+	}); // this is the openImmediately flag [default is true]
 
 	arduino_openattempts = 0;
 	
@@ -124,7 +129,6 @@ function initArduino(){
 		arduino_openattempts++
 		if (arduino_openattempts<config.MaxArduinoAttempts){
 			console.log("Arduino " + data);
-		
 			setTimeout(openArduino, 2000);
 		}else{
 			console.log("Unable to open connection. Please reset bluesmirf");	
@@ -158,18 +162,19 @@ function sendHardwareMSG($msg){
 	});
 }
 function calculateAverage(){
-		var clients = io.sockets.clients();
-		//sendHardwareMSG(data);
+		var clients = Object.keys(io.sockets.connected);
+    //sendHardwareMSG(data);
 		var average_m1 = 0;
 		var average_m2 = 0;
 		for (var i = 0; i < clients.length; i ++){
-			if (config.active_invincibilty ==true && config.invincibleId == clients[i].id){
-				average_m1 = clients[i].motor_speed.m1;
-				average_m2 = clients[i].motor_speed.m1;
+      var client = io.sockets.connected[clients[i]];
+			if (config.active_invincibilty ==true && config.invincibleId == client.id){
+				average_m1 =client.motor_speed.m1;
+				average_m2 = client.motor_speed.m1;
 				break;	
 			}
-			average_m1 += clients[i].motor_speed.m1;
-			average_m2 += clients[i].motor_speed.m2;
+			average_m1 += client.motor_speed.m1;
+			average_m2 += client.motor_speed.m2;
 		}
 		
 		if (config.active_invincibilty ==false){
@@ -183,16 +188,25 @@ function calculateAverage(){
 			average_m2 = 0;	
 		}
 		var motor_command = "{\"m1\":"+average_m1+",\"m2\":"+average_m2+"}";
-		sendHardwareMSG(motor_command);
-//		console.log(motor_command);
+		if (_skipCommands == false){
+		  sendHardwareMSG(motor_command);
+    }else{
+      sendHardwareMSG("{\"m1\":0,\"m2\":0}")
+    }
+
 		motor_command = motor_command.replace("}", ", \"collective_stats\":true, \"numberOfClients\":\""+clients.length+"\"}");
-		io.sockets.emit("brokeass-message-client", motor_command);
-//		console.log(motor_command);
+    
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    process.stdout.write("motor_command"+motor_command);
+    io.sockets.emit("brokeass-message-client", motor_command);
+
 }
+
 setInterval(initPowerup, 60000);
 setTimeout(function(){sendHardwareMSG("{\"i_t\":}");}, 1000);
+
 function initPowerup(){
-	
 	if (Math.random() < 0.5){
 		return;	
 	}
@@ -201,6 +215,7 @@ function initPowerup(){
 	io.sockets.emit("brokeass-message-client", "{\"powerupMode\":"+true+"}");
 	setTimeout(killPowerup, config.length_powerup);
 }
+
 function killPowerup(){
 	console.log("killPowerup");
 	if (config.active_powerup == false){
@@ -210,6 +225,7 @@ function killPowerup(){
 	io.sockets.emit("brokeass-message-client", "{\"killPowerupMode\":"+true+"}");
 	setTimeout(function(){io.sockets.emit("brokeass-message-client", "{\"end_invincibility\":"+true+"}");}, 500);
 }
+
 function killInvincibility(){
 	console.log("killInvincibility");
 	config.invincibleClientId = "";
@@ -218,12 +234,13 @@ function killInvincibility(){
 	setTimeout(function(){io.sockets.emit("brokeass-message-client", "{\"end_invincibility\":"+true+"}");}, 500);
 	sendHardwareMSG("{\"i_f\":}");
 }
-
+var _skipCommands = false;
 function questionPromptCommands(){
-	rl.question("Enter a command [u] [s] [i] [?]:", function(answer) {
+  var self = this;
+	rl.question("Enter a command [u] [s] [i] [?]:\n", function(answer) {
 		answer = answer.toLowerCase();
 		command = answer.charAt(0);
-		console.log(command);
+		console.log("command:",command);
 		switch(command){
 			case "u":
 				var port = answer.split(" ");
@@ -234,6 +251,9 @@ function questionPromptCommands(){
 				}
 				break;
 			case "s":
+        _skipCommands = !_skipCommands;
+        console.log("Stop:", _skipCommands);
+				questionPromptCommands();
 				break;
 			case "i":
 				initPowerup();

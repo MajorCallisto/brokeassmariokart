@@ -4,8 +4,8 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 	<meta charset="utf-8">
 	<title>Broke-Ass Prototype</title>
-	<!--<script src="http://192.168.1.113:3000/socket.io/socket.io.js"></script>-->
-	<script src="http://192.168.0.20:3000/socket.io/socket.io.js"></script>
+  <!--<script src="http://192.168.1.113:3000/socket.io/socket.io.js"></script>-->
+  <script src="http://192.168.1.7:3000/socket.io/socket.io.js"></script>
 	<script>
 		var uid = guid();
 		var m1_speed = 0;
@@ -25,13 +25,13 @@
 		var STATE_STARMAN_FAIL = "STATE_STARMAN_FAIL";
 		var _state = STATE_LOGIN;
 		var coinCount = 0;
-		
+
 		var socket;
-		
+
 		var motor_range = 255;
-		
+
 		var padding_y;
-		
+
 		var keyboardOverwrite = false;
 
 		function broadcastToSocket(value){
@@ -45,7 +45,7 @@
 		function guid(){
 			return (S4() + S4() + "-" + S4() + "-4" + S4().substr(0,3) + "-" + S4() + "-" + S4() + S4() + S4()).toLowerCase();
 		}
-		
+
 		function loop(){
 			// - (360-pedal_left.style.top.replace("px", ""))*0.25
 			var current_y_left = Number(pedal_left.style.top.replace("px", ""));
@@ -71,10 +71,10 @@
 		var dx = 50;
 		var dy = 50;
 		function moveStarman(){
-			
+
 			var orig_x = Number(starman.style.left.replace("px", ""));
 			var orig_y = Number(starman.style.top.replace("px", ""));
-			
+
 			starman.style.left = (orig_x+dx) + "px";
 			starman.style.top = (orig_y+dy) + "px";
 			//console.log(starman);
@@ -94,23 +94,23 @@
 		}
 		function broadcastSpeed(){
 			if (get_state()==STATE_STARMAN_FAIL){
-				return;	
+				return;
 			}
 			document.getElementById("btn_login").addEventListener('touchend', function(e) {});
-			broadcastToSocket("{\"m1\":"+m1_speed+",\"m2\":"+m2_speed+", \"username\":\""+user_name+"\"}");	
+			broadcastToSocket("{\"m1\":"+m1_speed+",\"m2\":"+m2_speed+", \"username\":\""+user_name+"\"}");
 		}
-		
+
 		window.onload = function(e){
-			
+
 			starman = document.getElementById("starman");
-			
+
 			starman_visible(false);
-			
+
 			document.getElementsByTagName("body")[0].addEventListener('touchend', function(e) {
 //			document.getElementById("touchlayer").addEventListener('touchend', function(e) {
-				
+
 				if (get_state() != STATE_DRIVE && get_state() != STATE_STARMAN && get_state() != STATE_STARMAN_WIN && get_state() != STATE_STARMAN_FAIL){
-					return;	
+					return;
 				}
 				if (get_state()==STATE_STARMAN_FAIL){
 					starmanAudio();
@@ -132,13 +132,13 @@
 			}, false);
 			//padding_y is used to give a bit of padding to the range of the pedal sliders
 			//It's 10% for the bottom and top
-			padding_y = window.innerHeight*0.20;	
+			padding_y = window.innerHeight*0.20;
 			document.getElementsByTagName("body")[0].addEventListener('touchmove', function(e) {
-			
+
 //			document.getElementById("touchlayer").addEventListener('touchmove', function(e) {
 
 				if (get_state() != STATE_DRIVE && get_state() != STATE_STARMAN && get_state() != STATE_STARMAN_WIN && get_state() != STATE_STARMAN_FAIL){
-					return;	
+					return;
 				}
 				//document.getElementById("trace").innerHTML += "touchMove";
 	//			if (event.targetTouches.length == 1) {
@@ -147,20 +147,20 @@
 						continue;
 					}
 					var touch = e.targetTouches[i];
-					
+
 					var motor_range_value = 0;//Math.round(((touch.pageY-padding_y/2)-(window.innerHeight)/2)/((window.innerHeight-padding_y)/2)*motor_range);
 					var touch_percentage = ((touch.pageY-padding_y/2)/(window.innerHeight-(padding_y))-0.5);
-					
+
 					if (touch_percentage < -0.5){
 						touch_percentage = -0.5;
 					}else if (touch_percentage > 0.5){
 						touch_percentage = 0.5;
 					}
-					
+
 					motor_range_value = Math.floor(touch_percentage*motor_range*-2);
-					
+
 					//broadcastToSocket(touch.pageX);
-					
+
 					if (touch.pageX < window.innerWidth/2){
 						//m1_target
 						m1_speed = motor_range_value;
@@ -170,12 +170,12 @@
 					}
 //					document.getElementById("trace").innerHTML = String(pad(m1_speed, 3) + " | " + String(pad(m2_speed, 3)));
 				}
-				
+
 				broadcastSpeed();
 				e.preventDefault();
 	//			}
 			}, false);
-			
+
 			document.getElementById("ui_brokeass").addEventListener('touchend', function(e) {
 				honk();
 				e.preventDefault();
@@ -185,30 +185,31 @@
 				window.addEventListener('deviceorientation', function(eventData) {
 				// gamma is the left-to-right tilt in degrees, where right is positive
 				var tiltLR = eventData.gamma - 45;
-				
+
 				// beta is the front-to-back tilt in degrees, where front is positive
 				var tiltFB = eventData.beta;
-				
+
 				// alpha is the compass direction the device is facing in degrees
 				var dir = eventData.alpha
-				
+
 				// call our orientation event handler
 				deviceOrientationHandler(tiltLR, tiltFB, dir);
 				}, false);
 			} else {
 				//document.getElementById("doEvent").innerHTML = "Not supported on your device or browser.  Sorry."
 			}
-			
 			set_state(STATE_INTRO);
 			resizePage();
-			initImages();	
-			
-			document.getElementById("intro").addEventListener('touchend', function(e) {
+			initImages();
+
+			document.getElementById("intro").addEventListener('touchend', clickLogin);
+			document.getElementById("intro").addEventListener('click', clickLogin);
+      function clickLogin(e){
 				set_state(STATE_LOGIN);
 				e.preventDefault();
-				
+
 				document.getElementById("intro").addEventListener('touchend', function(e) {});
-			});
+      }
 
 			document.getElementById("btn_login").addEventListener('touchend', btnClickStart);
 			document.getElementById("btn_login").addEventListener('click', btnClickStart);
@@ -226,7 +227,7 @@
 					val = e.keyCode -48;
 					m1_speed = val/9 *255 - 127;
 					keyboardOverwrite = true;
-					
+
 					broadcastSpeed();
 				}else if (e.keyCode >= 96 && e.keyCode <= 105){
 					val = e.keyCode -96;
@@ -260,12 +261,12 @@
 				if (e.keyCode >= 48 && e.keyCode <= 57){
 					m1_speed = 0;
 					keyboardOverwrite = false;
-					
+
 					broadcastSpeed();
 				}else if (e.keyCode >= 96 && e.keyCode <= 105){
 					m2_speed = 0;
 					keyboardOverwrite = false;
-					
+
 					broadcastSpeed();
 				}else if (e.keyCode == 39){//right
 					m2_speed = 0;
@@ -290,7 +291,7 @@
 		};
 		function resizePage(){
 			if (window.innerWidth < window.innerHeight){
-				addClass(document.body, "portrait");	
+				addClass(document.body, "portrait");
 			}else{
 				removeClass(document.body, "portrait");
 			}
@@ -299,11 +300,11 @@
 			number = Math.round(number);
 			var lessthanzero = (number < 0)?true:false;
 			if (length < String(number).length){
-				return String(number);	
+				return String(number);
 			}
 			var zero_string = "";
 			for (var i = 0; i < length; i ++){
-				zero_string += "0";	
+				zero_string += "0";
 			}
 			var number_string = (zero_string + number).slice(-length);
 			if (lessthanzero){number_string = number_string.replace("-", "-0");};
@@ -312,7 +313,7 @@
 		function deviceOrientationHandler(tiltLR, tiltFB, dir) {
 		  // Apply the transform to the image
 		  var logo = document.getElementById("ui_brokeass");
-		  
+
 		  logo.style.webkitTransform = "rotate("+ tiltFB +"deg)";
 		  logo.style.MozTransform = "rotate("+ tiltFB +"deg)";
 		  logo.style.transform = "rotate("+ tiltFB +"deg)";
@@ -343,28 +344,28 @@
 		}
 		function submit_username(){
 			setUserName(document.getElementById("user_name").value);
-			
+
 			if (user_name == ""){
 				return;
 			}
-			
-			
+
+
 			document.getElementById("btn_login").addEventListener('touchend', null);
 			document.getElementById("btn_login").addEventListener('click', null);
 			document.getElementById("btn_login").value = "CONNECTING";
 			document.getElementById("btn_login").disabled = true;
 			document.getElementById("user_name").disabled = true;
-				
+
 			if (this["io"]){
-				
 				//socket = io.connect('http://192.168.1.113:3000/');
-				socket = io.connect('http://192.168.0.20:3000/');
-				
+				socket = io.connect('http://192.168.1.7:3000/');
+				//socket = io();
+
 				socket.on('brokeass-message-client', function (data) {
-					//console.log(data);
-					
+					console.log(data);
+
 					if (data.toString().indexOf("connected")>-1){
-			
+
 						set_state(STATE_LOGIN_SUCCESS);
 						broadcastSpeed();
 					}
@@ -375,25 +376,25 @@
 						adequate();
 						console.log("socket.on",data.toString() == "adequate_attempts");
 
-						return;	
+						return;
 					}
 					if (data.toString().indexOf("powerupMode") != -1){
 						set_state(STATE_POWERUP);
-						return;	
+						return;
 					}
 					if (data.toString().indexOf("killPowerupMode") != -1){
 						killPowerup();
-						return;	
+						return;
 					}
 					if (data.toString().indexOf("missed_starman") != -1){
 						console.log("missed_starman");
 						document.getElementById("ui_starman").innerHTML = "<h1>"+JSON.parse(data.toString()).username+" has control</h1>";
 						set_state(STATE_STARMAN_FAIL);
-						return;	
+						return;
 					}
 					if (data.toString().indexOf("end_invincibility") != -1){
 						killInvincible();
-						return;	
+						return;
 					}
 					if (data.toString().indexOf("collective_stats")>-1){
 						var obj = JSON.parse(data.toString());
@@ -408,7 +409,7 @@
 		}
 		function killPowerup(){
 			if (get_state() == STATE_POWERUP){
-				set_state(STATE_DRIVE);	
+				set_state(STATE_DRIVE);
 				starman_visible(false);
 			}
 		}
@@ -416,14 +417,14 @@
 			//console.log($msg);
 			document.getElementById("trace").innerHTML = String($msg);
 		}
-		function clickPowerup(){			
+		function clickPowerup(){
 			document.getElementById('ui_powerup').setAttribute('src', 'images/lg_powerup_star.png');
 			mode_powerup = false;
 			starman_visible(false);
 			set_state(STATE_STARMAN_WIN);
 			broadcastToSocket("{\"caught_powerup\":"+true+", \"username\":\"" + user_name + "\"}");
 		}
-		
+
 		function starman_visible ($visible){
 			if ($visible == true){
 				starman.style.display = "block";
@@ -431,22 +432,22 @@
 				starman.style.display = "none";
 			}
 		}
-		
+
 		function set_state($state){
 			_state = $state;
-			starman_visible(false);			
+			starman_visible(false);
 			switch(_state){
 				case STATE_INTRO:
 					init_intro();
 				break;
-				case STATE_LOGIN:			
+				case STATE_LOGIN:
 					document.getElementById("intro").style.left = "-100%";
 					addClass(document.getElementById("intro"), "slideoutright");
 					setTimeout(function(){
 						document.getElementById("intro").style.display = "none";
 						login();
 					}, 250);
-					
+
 				break;
 				case STATE_LOGIN_SUCCESS:
 					document.getElementById("ui_entername").style.display = "none";
@@ -497,13 +498,13 @@
 			document.getElementById('adequate').pause();
 		}
 		function get_state(){
-			return _state;	
+			return _state;
 		}
 		function updateCoinage(){
-			document.getElementById("coinage").innerHTML = pad(Math.round(coinCount), 3);	
+			document.getElementById("coinage").innerHTML = pad(Math.round(coinCount), 3);
 		}
 		function removeClass($tag, $class){
-			$tag.className = document.body.className.replace($class,"");	
+			$tag.className = document.body.className.replace($class,"");
 		}
 		function addClass($tag, $class){
 			$tag.className += " " + $class;
@@ -563,13 +564,13 @@
 			document.getElementById("starman").innerHTML = "<img src=\"images/starman.png\" />";
 			document.getElementById("track_left").innerHTML = "<img src=\"images/lg_pedal_left.png\" id=\"pedal_left\" />";
 			document.getElementById("track_right").innerHTML = "<img src=\"images/lg_pedal_right.png\" id=\"pedal_right\" />";
-			
+
 			pedal_left = document.getElementById("pedal_left");
 			pedal_right = document.getElementById("pedal_right");
-			
+
 			pedal_left.style.top = "-500px";//(window.innerHeight/2- pedal_left.height/2) + "px";
 			pedal_right.style.top = "-500px";//(window.innerHeight/2- pedal_right.height/2) + "px";
-			
+
 			preventLongPressMenu(pedal_left);
 			preventLongPressMenu(pedal_right );
 		}
@@ -581,15 +582,15 @@
 		  e.returnValue = false;
 		  return false;
 		}
-	
+
 		function preventLongPressMenu(node) {
 		  node.ontouchstart = absorbEvent_;
 		  node.ontouchmove = absorbEvent_;
 		  node.ontouchend = absorbEvent_;
 		  node.ontouchcancel = absorbEvent_;
 		}
-	
-		</script> 
+
+		</script>
 <link href="style.css" rel="stylesheet" type="text/css">
 </head>
 <body>

@@ -17,3 +17,7 @@ $RECYCLE.BIN/
 source
 presentation_assets
 brokeassArduino_unused
+node/node_modules
+webclient/node_modules
+unityPresentation
+photogrammetry
